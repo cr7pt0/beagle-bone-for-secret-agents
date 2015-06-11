@@ -115,7 +115,7 @@ bool get_code (char * buf, const int len)
     }
 
   /* Wait for pin entry */
-  sleep (10);
+  sleep (15);
 
   if (read(fd,buf,len ) != len)
     {
