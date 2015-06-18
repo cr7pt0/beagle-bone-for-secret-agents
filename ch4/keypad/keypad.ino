@@ -78,6 +78,7 @@ void setup ()
   Wire.onRequest (provide_code);
   Wire.onReceive (receiveEvent3);
   Serial.begin(9600);
+  readeeprom ();
 }
 
 /**
