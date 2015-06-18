@@ -18,6 +18,7 @@
  */
 #include <Keypad.h>
 #include <Wire.h>
+#include <EEPROM.h>
 
 const byte ROWS = 4;
 const byte COLS = 3;
@@ -59,6 +60,11 @@ char passcode[] = {'1', '2', '3', '4', '5'};
 /* flag to trigger when to go collect the code or not */
 bool collect_code = false;
 
+
+int a = 0;
+int value;
+/* a is the eeprom address to read from, value is the contents */
+
 /**
  * Obligatory Arduino setup function
  *
@@ -71,6 +77,7 @@ void setup ()
   Wire.begin (I2C_ADDR);
   Wire.onRequest (provide_code);
   Wire.onReceive (receiveEvent3);
+  Serial.begin(9600);
 }
 
 /**
@@ -85,6 +92,27 @@ void flash()
   digitalWrite (LED, HIGH);
 }
 
+/**
+ * Read the first 512 bytes of EEPROM
+ *
+ */
+void readeeprom()
+{
+
+  value = EEPROM.read(a);
+
+  Serial.print(a);
+  Serial.print("\t");
+  Serial.print(value);
+  Serial.println();
+
+  a = a + 1;
+
+  if (a == 512)
+    a = 0;
+
+  delay(500);
+}
 /**
  * Collect the keypad code into the buffer. This function blocks on
  * each key.
@@ -104,6 +132,7 @@ bool get_code (char * buf, const int len)
       for (int x = 0; x < len; x++)
         {
           buf[x] = keypad.waitForKey();
+          EEPROM.write(x, x);
           flash ();
         }
       result = true;
