@@ -1,177 +1,42 @@
-/* -*- mode: c; c-file-style: "gnu" -*- */
 /*
- * The code is free and can be used for any purpose including commercial
- * purposes.  Packt Publishing and the authors can not be held liable for
- * any use or result of the book's text or code.  Further copyright &
- * license info is found in the book's Copyright page.  The book can be
- * obtained from
- * "https://www.packtpub.com/hardware-and-creative/beaglebone-secret-agents".
-*/
-/**
- * @file   keypad.cc
- * @author Joshua Datko <jbdatko@gmail.com>
- * @date   Sat Jun  7 09:40:03 2014
- *
- * @brief  Provides a six pin keypad code when prompted over I2C
- *
- *
+Test i2c read from RTC
+Tim Steiner
  */
-#include <Keypad.h>
-#include <Wire.h>
-#include <EEPROM.h>
 
-const byte ROWS = 4;
-const byte COLS = 3;
-char keys[ROWS][COLS] =
-  {
-    {'1','2','3'},
-    {'4','5','6'},
-    {'7','8','9'},
-    {'*','0','#'}
-  };
+#include "Wire.h"
+#define DS3231M 0x68 // each I2C object has a unique bus address, the DS3231M is 0x68
 
-/* Connect as follows:
-   This is the following keypad:
-   https://www.sparkfun.com/products/8653
-
-   Keypad Pin -> Arduino Digital
-   3 -> 2
-   1 -> 3
-   5 -> 4
-
-   2 -> 5
-   7 -> 6
-   6 -> 7
-   4 -> 8
-*/
-
-/* connect to the row pinouts of the keypad */
-byte rowPins[ROWS] = {5, 6, 7, 8};
-/* connect to the column pinouts of the keypad */
-byte colPins[COLS] = {2, 3, 4};
-
-/* Declare program constants */
-const int LED = 13;
-Keypad keypad = Keypad( makeKeymap (keys), rowPins, colPins, ROWS, COLS );
-const int I2C_ADDR = 0x42;
-/* This is a stupid combination; one an idiot would have on his
-   luggage - Spaceballs, 1987*/
-char passcode[] = {'1', '2', '3', '4', '5'};
-/* flag to trigger when to go collect the code or not */
-bool collect_code = false;
-
-
-int a = 0;
-int value;
-/* a is the eeprom address to read from, value is the contents */
-
-/**
- * Obligatory Arduino setup function
- *
- */
-void setup ()
+void setup()
 {
-  pinMode (LED, OUTPUT);
-
-  digitalWrite (LED, LOW);
-  Wire.begin (I2C_ADDR);
-  Wire.onRequest (provide_code);
-  Wire.onReceive (receiveEvent3);
+  Wire.begin(); // wake up I2C bus
   Serial.begin(9600);
-  readeeprom ();
 }
 
-/**
- * Briefly flash the LED
- *
- */
-void flash()
+void gettime(byte *second, byte *minute, byte *hour, byte *dayOfWeek, byte *dayOfMonth, byte *month, byte *year) // request the current time stored in DS3231M
 {
-
-  digitalWrite (LED, LOW);
-  delay (100);
-  digitalWrite (LED, HIGH);
+ Wire.beginTransmission(0x68); // "Hey, RTC @ 0x68! Message for you"
+ Wire.write(0); // "move your register pointer back to 00h"
+ Wire.endTransmission(); // "Thanks, goodbye..."
+  // now get the data from the RTC
+ Wire.requestFrom(DS3231M, 7); // "Hey, RTC @ 0x68 - please send me the contents of your first seven registers"
+ *second = bcdToDec(Wire.read(); // first received byte stored here
+ *minute = bcdToDec(Wire.read(); // second received byte stored here
+ *hour = bcdToDec(Wire.read(); // third received byte stored here
+ *dayOfWeek = bcdToDec(Wire.read(); // forth received byte stored here
+ *dayOfMonth = bcdToDec(Wire.read(); // fifth received byte stored here
+ *month = bcdToDec(Wire.read(); // sixth received byte stored here
+ *year = bcdToDec(Wire.read(); // seventh received byte stored here
+ Serial.print("Time = ");
+ Serial.print(month,1);
+ Serial.print(dayOfMonth,1);
+ Serial.print(year,1);
+ Serial.print(hour,1);
+ Serial.print(minute,1);
+ Serial.print(second,1);
 }
-
-/**
- * Read the first 512 bytes of EEPROM
- *
- */
-void readeeprom()
-{
-
-  value = EEPROM.read(a);
-
-  Serial.print(a);
-  Serial.print("\t");
-  Serial.print(value);
-  Serial.println();
-
-  a = a + 1;
-
-  if (a == 512)
-    a = 0;
-
-  delay(500);
-}
-/**
- * Collect the keypad code into the buffer. This function blocks on
- * each key.
- *
- * @param buf The buffer to fill
- * @param len The length of the buffer to fill
- *
- * @return true if filled, otherwise false
- */
-bool get_code (char * buf, const int len)
-{
-
-  bool result = false;
-
-  if (NULL != buf)
-    {
-      for (int x = 0; x < len; x++)
-        {
-          buf[x] = keypad.waitForKey();
-          EEPROM.write(x, x);
-          flash ();
-        }
-      result = true;
-    }
-
-  return result;
-}
-
 
 void loop()
 {
-  delay (100);
-
-  if (collect_code)
-    {
-      digitalWrite (LED, HIGH);
-      get_code (passcode, sizeof(passcode));
-      digitalWrite (LED, LOW);
-      collect_code = false;
-    }
-
-
-}
-
-void provide_code ()
-{
-  Wire.write ((uint8_t *)passcode, sizeof(passcode));
-}
-
-void receiveEvent3(int bytes)
-{
-
-  /* Pull the data off, but we don't care what it is */
-  while(0 < Wire.available())
-    {
-      char c = Wire.read();
-    }
-
-  collect_code = true;
-
+ gettime();
+ delay(5000);
 }
