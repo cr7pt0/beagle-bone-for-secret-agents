@@ -1,24 +1,15 @@
-/* -*- mode: c; c-file-style: "gnu" -*- */
-/*
- * The code is free and can be used for any purpose including commercial
- * purposes.  Packt Publishing and the authors can not be held liable for
- * any use or result of the book's text or code.  Further copyright &
- * license info is found in the book's Copyright page.  The book can be
- * obtained from
- * "https://www.packtpub.com/hardware-and-creative/beaglebone-secret-agents".
-*/
 /**
- * @file   keypad.cc
- * @author Joshua Datko <jbdatko@gmail.com>
- * @date   Sat Jun  7 09:40:03 2014
- *
- * @brief  Provides a six pin keypad code when prompted over I2C
- *
+ * Keypad entry w/sha256 hash
+ * Tim Steiner
+ * 
+ * This is a modified Keypad entry sketch for Arduino based on the original keypad.ino by Joshua Datko <jbdatko@gmail.com>
+ * "https://www.packtpub.com/hardware-and-creative/beaglebone-secret-agents".
  *
  */
 #include <Keypad.h>
 #include <Wire.h>
 #include <EEPROM.h>
+#include <sha256.h>
 
 const byte ROWS = 4;
 const byte COLS = 3;
@@ -60,11 +51,6 @@ char passcode[] = {'1', '2', '3', '4', '5'};
 /* flag to trigger when to go collect the code or not */
 bool collect_code = false;
 
-
-int a = 0;
-int value;
-/* a is the eeprom address to read from, value is the contents */
-
 /**
  * Obligatory Arduino setup function
  *
@@ -72,13 +58,22 @@ int value;
 void setup ()
 {
   pinMode (LED, OUTPUT);
-
   digitalWrite (LED, LOW);
   Wire.begin (I2C_ADDR);
   Wire.onRequest (provide_code);
   Wire.onReceive (receiveEvent3);
-  Serial.begin(9600);
-  readeeprom ();
+  uint8_t* hash;
+  uint32_t a;
+  Serial.begin(19200);
+  
+    // SHA tests
+  Serial.println("Test: FIPS 180-2 B.1");
+  Serial.println("Expect:ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad");
+  Serial.print("Result:");
+  Sha256.init();
+  Sha256.print("abc");
+  printHash(Sha256.result());
+  Serial.println();
 }
 
 /**
@@ -93,27 +88,6 @@ void flash()
   digitalWrite (LED, HIGH);
 }
 
-/**
- * Read the first 512 bytes of EEPROM
- *
- */
-void readeeprom()
-{
-
-  value = EEPROM.read(a);
-
-  Serial.print(a);
-  Serial.print("\t");
-  Serial.print(value);
-  Serial.println();
-
-  a = a + 1;
-
-  if (a == 512)
-    a = 0;
-
-  delay(500);
-}
 /**
  * Collect the keypad code into the buffer. This function blocks on
  * each key.
